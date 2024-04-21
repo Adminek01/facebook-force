@@ -1,0 +1,1 @@
+cd .. && rm -rf facebook-force && git clone https://github.com/Adminek01/facebook-force && cd facebook-force && ls & time & date
